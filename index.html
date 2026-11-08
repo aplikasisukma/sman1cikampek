@@ -125,7 +125,7 @@
 
                     <!-- Container Dynamic Articles from Google Sheets -->
                     <div id="kontainer-pengumuman" class="space-y-4">
-                        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm text-center py-10">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm text-center py-10" id="loading-box">
                             <i class="fa-solid fa-spinner animate-spin text-blue-600 text-2xl mb-2"></i>
                             <p class="text-slate-500 text-sm">Memuat pengumuman dari Google Sheets...</p>
                         </div>
@@ -172,7 +172,6 @@
     </footer>
 
     <script>
-        // URL WEB APP ANDA YANG SUDAH BENAR BERAKHIRAN /exec
         const URL_API_GAS = "https://script.google.com/macros/s/AKfycbx1luknPD3wWHWrCbG-jnKuhRHdc21IdWBk4QRM19WNhJivoALnqSPB9R2AnVLmJcMpXQ/exec";
 
         function toggleMobileMenu() {
@@ -184,7 +183,6 @@
             const viewAcademic = document.getElementById('view-academic');
             const btnPublic = document.getElementById('btn-mode-public');
             const btnAcademic = document.getElementById('btn-mode-academic');
-            const profileBadge = document.getElementById('user-profile-badge');
 
             if (viewName === 'public') {
                 viewPublic.classList.remove('hidden');
@@ -200,63 +198,39 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // FUNGSI MEMUAT DATA DARI GOOGLE SHEETS VIA JSONP / CORS WORKAROUND
-        async function muatPengumuman() {
+        // FUNGSI CALLBACK JSONP UNTUK MENGAMBIL DATA TANPA BLOKIR BROWSER
+        function tampilkanDataSheets(data) {
             const kontainer = document.getElementById("kontainer-pengumuman");
-            try {
-                // Menggunakan mode no-cors atau proxy publik aman untuk mengatasi blokiran browser
-                const response = await fetch(URL_API_GAS, { redirect: "follow" });
-                const data = await response.json();
-                kontainer.innerHTML = "";
+            kontainer.innerHTML = "";
 
-                if (!Array.isArray(data) || data.length === 0) {
-                    kontainer.innerHTML = "<p class='text-slate-500 text-sm'>Belum ada pengumuman di Google Sheets.</p>";
-                    return;
-                }
-
-                data.reverse().forEach(item => {
-                    const htmlCard = `
-                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2">
-                            ${item.gambar ? `<img src="${item.gambar}" class="w-full h-48 object-cover rounded-xl mb-3">` : ''}
-                            <div class="flex items-center justify-between">
-                                <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full uppercase">${item.id || 'INFORMASI'}</span>
-                                <span class="text-xs text-slate-400"><i class="fa-regular fa-clock mr-1"></i>${item.tanggal || ''}</span>
-                            </div>
-                            <h4 class="font-bold text-slate-800 text-base mt-1">${item.judul || 'Tanpa Judul'}</h4>
-                            <p class="text-xs text-slate-600 leading-relaxed">${item.isi || ''}</p>
-                        </div>
-                    `;
-                    kontainer.innerHTML += htmlCard;
-                });
-            } catch (err) {
-                console.error("Fetch Error:", err);
-                // Fallback jika diblokir browser, menggunakan teknik JSONP dinamis
-                muatDenganJSONP();
+            if (!data || data.length === 0) {
+                kontainer.innerHTML = "<p class='text-slate-500 text-sm'>Belum ada pengumuman di Google Sheets.</p>";
+                return;
             }
+
+            data.reverse().forEach(item => {
+                const htmlCard = `
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2">
+                        ${item.gambar ? `<img src="${item.gambar}" class="w-full h-48 object-cover rounded-xl mb-3">` : ''}
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full uppercase">${item.id || 'INFORMASI'}</span>
+                            <span class="text-xs text-slate-400"><i class="fa-regular fa-clock mr-1"></i>${item.tanggal || ''}</span>
+                        </div>
+                        <h4 class="font-bold text-slate-800 text-base mt-1">${item.judul || 'Tanpa Judul'}</h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">${item.isi || ''}</p>
+                    </div>
+                `;
+                kontainer.innerHTML += htmlCard;
+            });
         }
 
-        function muatDenganJSONP() {
-            // Callback global aman untuk Google Apps Script
-            window.tampilkanDataSheets = function(data) {
-                const kontainer = document.getElementById("kontainer-pengumuman");
-                kontainer.innerHTML = "";
-                if (!data || data.length === 0) {
-                    kontainer.innerHTML = "<p class='text-slate-500 text-sm'>Data kosong.</p>";
-                    return;
-                }
-                data.reverse().forEach(item => {
-                    kontainer.innerHTML += `
-                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2">
-                            <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full uppercase">${item.id || 'info'}</span>
-                            <h4 class="font-bold text-slate-800 text-base mt-1">${item.judul || ''}</h4>
-                            <p class="text-xs text-slate-600">${item.isi || ''}</p>
-                        </div>
-                    `;
-                });
-            };
-
+        // MEMANGGIL SCRIPT SECARA DINAMIS (JSONP)
+        function muatPengumuman() {
             const script = document.createElement('script');
             script.src = `${URL_API_GAS}?callback=tampilkanDataSheets`;
+            script.onerror = function() {
+                document.getElementById("kontainer-pengumuman").innerHTML = "<p class='text-red-500 text-sm'>Gagal memuat data dari Google Sheets.</p>";
+            };
             document.body.appendChild(script);
         }
 
